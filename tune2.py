@@ -19,7 +19,7 @@ env_config = {}
 env_config["time_step_size"]                = 0.5
 env_config["debug"]                         = 0
 env_config["training"]                      = True
-env_config["action_clip_init"]              = tune.uniform(0.1, 1.0)
+#env_config["action_clip_init"]              = tune.uniform(0.1, 1.0)
 env_config["action_clip_timesteps"]         = 100000
 
 # Algorithm configs
@@ -74,14 +74,14 @@ params["train_batch_size"]                  = 32
 params["lr"]                                = tune.loguniform(1e-7, 3e-4)
 params["sgd_minibatch_size"]                = 256 #must be <= train_batch_size (and divide into it)
 params["train_batch_size"]                  = 256 #tune.choice([256, 16384]) #must be a multiple of rollout_fragment_length
-params["grad_clip"]                         = tune.uniform(0.1, 0.5)
+#params["grad_clip"]                         = tune.uniform(0.1, 0.5)
 #params["clip_param"]                        = None #tune.choice([0.2, 0.3, 0.6, 1.0])
 
 # Add dict here for lots of model HPs
 model_config = params["model"]
-model_config["fcnet_hiddens"]               = [50, 8]
+model_config["fcnet_hiddens"]               = tune.choice([[50, 8], [20, 4], [8, 4]])
 model_config["fcnet_activation"]            = "relu" #tune.choice(["relu", "relu", "tanh"])
-model_config["post_fcnet_activation"]       = "tanh" #tune.choice(["linear", "tanh"])
+model_config["post_fcnet_activation"]       = "sigmoid" #tune.choice(["linear", "tanh"])
 params["model"] = model_config
 
 explore_config = params["exploration_config"]

@@ -10,9 +10,9 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
     metadata = {"render_modes": None}
     #metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 4}
 
-    OBS_SIZE                = 5
+    OBS_SIZE                = 4
+    MAX_ACCEL               = 3.0       #vehicle's max achievable acceleration (fwd or bkwd), m/s^2
     MAX_SPEED               = 35.0      #vehicle's max achievable speed, m/s
-    MAX_ACCEL               = 3.0       #vehicle's max achievable acceleration (fwd backward)
     ROAD_SPEED_LIMIT        = 29.1      #Roadway's legal speed limit, m/s
     SCENARIO_LENGTH         = 2000.0    #total length of the roadway, m
     SCENARIO_BUFFER_LENGTH  = 200.0     #length of buffer added to the end of continuing lanes, m
@@ -48,29 +48,24 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
 
         # Indices into the observation vector (need to have all vehicles contiguous with ego being the first one)
         self.EGO_X              =  0 #agent's distance downtrack in that lane (center of bounding box), m
-        self.EGO_SPEED          =  1 #agent's forward speed, m/s
-        self.EGO_LANE_REM       =  2 #distance remaining in the agent's current lane, m
-        self.EGO_ACCEL_CMD_CUR  =  3 #agent's most recent accel_cmd, m/s^2
-        self.EGO_ACCEL_CMD_PREV =  4 #agent's accel cmd from prev time step, m/s^2
+        self.EGO_LANE_REM       =  1 #distance remaining in the agent's current lane, m
+        self.EGO_SPEED          =  2 #agent's forward speed, m/s
+        self.EGO_SPEED_PREV     =  3 #agent's forward speed in previous time step, m/s
 
         # Obs vector only handles normalized values.  Distances are in [-1.1, 1.1], speeds are in [0, 1]
-        # acceleration is in [-1, 1], curvatures are scaled logarithms in [-1, 1]
         lower_obs = np.zeros((Car.OBS_SIZE)) #most values are 0, so only the others are explicitly set below
         lower_obs[self.EGO_LANE_REM]        = -1.1
-        lower_obs[self.EGO_ACCEL_CMD_CUR]   = -Car.MAX_ACCEL
-        lower_obs[self.EGO_ACCEL_CMD_PREV]  = -Car.MAX_ACCEL
 
         upper_obs = np.ones(Car.OBS_SIZE)
         upper_obs[self.EGO_X]               = 1.1
-        upper_obs[self.EGO_SPEED]           = Car.MAX_SPEED
         upper_obs[self.EGO_LANE_REM]        = 1.1
-        upper_obs[self.EGO_ACCEL_CMD_CUR]   = Car.MAX_ACCEL
-        upper_obs[self.EGO_ACCEL_CMD_PREV]  = Car.MAX_ACCEL
+        upper_obs[self.EGO_SPEED]           = Car.MAX_SPEED
+        upper_obs[self.EGO_SPEED_PREV]      = Car.MAX_SPEED
 
         self.observation_space = Box(low=lower_obs, high=upper_obs, dtype=np.float32)
 
-        lower_act = np.array([-1.0])
-        upper_act = np.array([ 1.0])
+        lower_act = np.array([0.0])
+        upper_act = np.array([1.0])
         self.action_space = Box(low=lower_act, high=upper_act, dtype=np.float32)
 
         self.obs = np.zeros(Car.OBS_SIZE) #will be returned from reset() and step()
@@ -113,8 +108,9 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
         # Reinitialize the whole observation vector
         self.obs = np.zeros(Car.OBS_SIZE)
         self.obs[self.EGO_X]                = ego_x / Car.SCENARIO_LENGTH
-        self.obs[self.EGO_SPEED]            = ego_speed / Car.MAX_SPEED
         self.obs[self.EGO_LANE_REM]         = ego_rem / Car.SCENARIO_LENGTH
+        self.obs[self.EGO_SPEED]            = ego_speed / Car.MAX_SPEED
+        self.obs[self.EGO_SPEED_PREV]       = ego_speed / Car.MAX_SPEED
 
         # Other persistent data
         self.stopped_count = 0
@@ -124,7 +120,7 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
 
 
     def step(self,
-                action  : list      #list of floats; the only element is acceleration, scaled in [-1, 1] from the NN
+                action  : list      #list of floats; the only element is speed, scaled in [0, 1] from the NN
             ):
         """Executes a single time step of the environment.  Determines how the input actions will alter the
             simulated world and returns the resulting observations to the agent.
@@ -137,8 +133,9 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
         for a in action:
             a = min(max(a, -clip), clip)
 
-        new_accel = action[0] * Car.MAX_ACCEL
-        assert -Car.MAX_ACCEL <= new_accel <= Car.MAX_ACCEL, "Input accel cmd invalid: {:.2f}".format(action[0])
+        speed_cmd = action[0] * Car.MAX_SPEED
+        assert 0.0 <= speed_cmd <= Car.MAX_SPEED, "Input speed cmd invalid: {:.2f}".format(action[0])
+
         self.steps_since_reset += 1
         self.steps_since_init += 1
         done = False
@@ -146,9 +143,9 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
         return_info = {"reason": "Unknown"}
 
         # Move the vehicle downtrack (need to do some scaling here)
-        prev_accel = self.obs[self.EGO_ACCEL_CMD_CUR] * Car.MAX_ACCEL
         prev_speed = self.obs[self.EGO_SPEED] * Car.MAX_SPEED
         prev_dist = self.obs[self.EGO_X] * Car.SCENARIO_LENGTH
+        new_accel = min(max((speed_cmd - prev_speed) / self.time_step_size, -Car.MAX_ACCEL), Car.MAX_ACCEL)
         new_ego_speed = min(max(prev_speed + self.time_step_size*new_accel, 0.0), Car.MAX_SPEED)
         new_ego_x = prev_dist + self.time_step_size*new_ego_speed
         new_ego_rem = Car.SCENARIO_LENGTH + Car.SCENARIO_BUFFER_LENGTH - new_ego_x
@@ -159,12 +156,11 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
             done = True
             return_info["reason"] = "Success; end of scenario"
 
-        # Update the obs vector with the new vehicle state info
-        self.obs[self.EGO_ACCEL_CMD_PREV] = prev_accel / Car.MAX_ACCEL
-        self.obs[self.EGO_ACCEL_CMD_CUR] = new_accel / Car.MAX_ACCEL
-        self.obs[self.EGO_LANE_REM] = new_ego_rem / Car.SCENARIO_LENGTH
-        self.obs[self.EGO_SPEED] = new_ego_speed / Car.MAX_SPEED
+        # Update the obs vector with the new vehicle state info (scaled)
         self.obs[self.EGO_X] = new_ego_x / Car.SCENARIO_LENGTH
+        self.obs[self.EGO_LANE_REM] = new_ego_rem / Car.SCENARIO_LENGTH
+        self.obs[self.EGO_SPEED_PREV] = self.obs[self.EGO_SPEED]
+        self.obs[self.EGO_SPEED] = new_ego_speed / Car.MAX_SPEED
 
         # If vehicle has been stopped for several time steps, then declare the episode done as a failure
         stopped_vehicle = False
