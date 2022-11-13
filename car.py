@@ -116,6 +116,8 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
         self.stopped_count = 0
         self.steps_since_reset = 0
 
+        print("///// init: action_clip_init = {}, action_clip_timesteps = {}".format(self.action_clip_init, self.action_clip_timesteps))
+
         return self.obs
 
 
@@ -149,6 +151,7 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
         new_ego_speed = min(max(prev_speed + self.time_step_size*new_accel, 0.0), Car.MAX_SPEED)
         new_ego_x = prev_dist + self.time_step_size*new_ego_speed
         new_ego_rem = Car.SCENARIO_LENGTH + Car.SCENARIO_BUFFER_LENGTH - new_ego_x
+        #print("///// enter step: raw action = {:.4f}, clipped speed_cmd = {:.4f}, new_ego_speed = {:.4f}".format(action[0], speed_cmd, new_ego_speed))
 
         # If the ego vehicle has run off the end of the scenario, consider the episode successfully complete
         if new_ego_x >= Car.SCENARIO_LENGTH:
@@ -161,6 +164,7 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
         self.obs[self.EGO_LANE_REM] = new_ego_rem / Car.SCENARIO_LENGTH
         self.obs[self.EGO_SPEED_PREV] = self.obs[self.EGO_SPEED]
         self.obs[self.EGO_SPEED] = new_ego_speed / Car.MAX_SPEED
+        #print("      updated obs = {}".format(self.obs))
 
         # If vehicle has been stopped for several time steps, then declare the episode done as a failure
         stopped_vehicle = False
@@ -274,7 +278,8 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
                 penalty = 0.02 * (1.0 - norm_speed/0.95)
                 explanation += "Low speed penalty {:.4f}. ".format(penalty)
             elif norm_speed > 1.0:
-                penalty = 0.03 * norm_speed - 0.03
+                diff = norm_speed - 1.0
+                penalty = 0.5 * diff*diff
                 explanation += "HIGH speed penalty {:.4f}. ".format(penalty)
             reward -= penalty
 

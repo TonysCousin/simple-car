@@ -108,7 +108,7 @@ stopper = StopLogic(max_timesteps           = 400,
                     max_iterations          = 2500,
                     min_iterations          = 800,
                     avg_over_latest         = 200,
-                    success_threshold       = 0.95,
+                    success_threshold       = 0.9,
                     failure_threshold       = 0.1,
                     compl_std_dev           = 0.015
                    )
