@@ -20,7 +20,7 @@ env_config["time_step_size"]                = 0.5
 env_config["debug"]                         = 0
 env_config["training"]                      = True
 #env_config["action_clip_init"]              = tune.uniform(0.1, 1.0)
-env_config["action_clip_timesteps"]         = 100000
+#env_config["action_clip_timesteps"]         = 100000
 
 # Algorithm configs
 params["env"]                               = Car
@@ -71,7 +71,7 @@ params["train_batch_size"]                  = 32
 """
 # ===== Params for PPO ======================================================================
 
-params["lr"]                                = tune.loguniform(1e-7, 3e-4)
+params["lr"]                                = tune.loguniform(8e-6, 2e-4)
 params["sgd_minibatch_size"]                = 256 #must be <= train_batch_size (and divide into it)
 params["train_batch_size"]                  = 256 #tune.choice([256, 16384]) #must be a multiple of rollout_fragment_length
 #params["grad_clip"]                         = tune.uniform(0.1, 0.5)
@@ -79,9 +79,9 @@ params["train_batch_size"]                  = 256 #tune.choice([256, 16384]) #mu
 
 # Add dict here for lots of model HPs
 model_config = params["model"]
-model_config["fcnet_hiddens"]               = tune.choice([[50, 8], [20, 4], [8, 4]])
+model_config["fcnet_hiddens"]               = tune.choice([[50, 8], [8, 4], [4, 2]])
 model_config["fcnet_activation"]            = "relu" #tune.choice(["relu", "relu", "tanh"])
-model_config["post_fcnet_activation"]       = "sigmoid" #tune.choice(["linear", "tanh"])
+model_config["post_fcnet_activation"]       = tune.choice(["linear", "sigmoid"])
 params["model"] = model_config
 
 explore_config = params["exploration_config"]
@@ -89,9 +89,10 @@ explore_config["type"]                      = "GaussianNoise" #default OrnsteinU
 explore_config["stddev"]                    = 0.1 #tune.uniform(0.1, 0.5) #this param is specific to GaussianNoise
 explore_config["random_timesteps"]          = 0 #tune.qrandint(0, 20000, 50000) #was 20000
 explore_config["initial_scale"]             = 1.0
-explore_config["final_scale"]               = 0.02 #tune.choice([1.0, 0.01])
+explore_config["final_scale"]               = 0.01 #tune.choice([1.0, 0.01])
 explore_config["scale_timesteps"]           = 200000  #tune.choice([100000, 400000]) #was 900k
 params["exploration_config"] = explore_config
+params["explore"]                           = False
 
 # ===== Final setup =========================================================================
 

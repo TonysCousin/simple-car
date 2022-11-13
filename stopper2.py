@@ -126,7 +126,7 @@ class StopLogic(Stopper):
                         avg_of_max = mean(dq_max)
                         slope_max = self._get_slope(dq_max)
                         if avg_of_max < self.success_avg_threshold:
-                            if slope_max <= 0.0:
+                            if avg_of_max < self.failure_avg_threshold  or  slope_max <= 0.0:
                                 print("\n///// Stopping trial - no improvement in {} iters.\n".format(self.most_recent))
                                 return True
 
