@@ -19,8 +19,8 @@ env_config = {}
 env_config["time_step_size"]                = 0.5
 env_config["debug"]                         = 0
 env_config["training"]                      = True
-env_config["action_clip_init"]              = tune.uniform(0.1, 1.0)
-env_config["action_clip_timesteps"]         = 100000
+#env_config["action_clip_init"]              = tune.uniform(0.1, 1.0)
+#env_config["action_clip_timesteps"]         = 100000
 
 # Algorithm configs
 params["env"]                               = Car
@@ -29,9 +29,9 @@ params["framework"]                         = "torch"
 params["num_gpus"]                          = 1 #for the local worker
 params["num_cpus_per_worker"]               = 1 #also applies to the local worker and evaluation workers
 params["num_gpus_per_worker"]               = 0 #this has to allow for evaluation workers also
-params["num_workers"]                       = 12 #num remote workers (remember that there is a local worker also)
+params["num_workers"]                       = 4 #num remote workers (remember that there is a local worker also)
 params["num_envs_per_worker"]               = 1
-params["rollout_fragment_length"]           = 256 #timesteps pulled from a sampler
+params["rollout_fragment_length"]           = 200 #timesteps pulled from a sampler
 params["gamma"]                             = 0.999 #tune.choice([0.99, 0.999])
 params["evaluation_interval"]               = 6
 params["evaluation_duration"]               = 6
@@ -40,6 +40,7 @@ params["evaluation_parallel_to_training"]   = True #True requires evaluation_num
 params["evaluation_num_workers"]            = 2
 params["log_level"]                         = "WARN"
 params["seed"]                              = 17
+params["batch_mode"]                        = "complete_episodes"
 
 # ===== Params for DDPG =====================================================================
 """
@@ -72,16 +73,16 @@ params["train_batch_size"]                  = 32
 # ===== Params for PPO ======================================================================
 
 params["lr"]                                = tune.loguniform(1e-7, 3e-4)
-params["sgd_minibatch_size"]                = 256 #must be <= train_batch_size (and divide into it)
-params["train_batch_size"]                  = 256 #tune.choice([256, 16384]) #must be a multiple of rollout_fragment_length
-params["grad_clip"]                         = tune.uniform(0.1, 0.5)
+params["sgd_minibatch_size"]                = 32 #must be <= train_batch_size (and divide into it)
+params["train_batch_size"]                  = 800 #must be = rollout_fragment_length * num_workers * num_envs_per_worker
+#params["grad_clip"]                         = tune.uniform(0.1, 0.5)
 #params["clip_param"]                        = None #tune.choice([0.2, 0.3, 0.6, 1.0])
 
 # Add dict here for lots of model HPs
 model_config = params["model"]
-model_config["fcnet_hiddens"]               = [50, 8]
+model_config["fcnet_hiddens"]               = tune.choice([64, 48, 8], [50, 8], [16, 4]])
 model_config["fcnet_activation"]            = "relu" #tune.choice(["relu", "relu", "tanh"])
-model_config["post_fcnet_activation"]       = "tanh" #tune.choice(["linear", "tanh"])
+model_config["post_fcnet_activation"]       = "linear" #tune.choice(["linear", "tanh"])
 params["model"] = model_config
 
 explore_config = params["exploration_config"]
@@ -105,8 +106,8 @@ tune_config = tune.TuneConfig(
                 num_samples                 = 15 #number of HP trials
               )
 stopper = StopLogic(max_timesteps           = 400,
-                    max_iterations          = 2500,
-                    min_iterations          = 800,
+                    max_iterations          = 1000,
+                    min_iterations          = 400,
                     avg_over_latest         = 200,
                     success_threshold       = 0.95,
                     failure_threshold       = 0.1,
