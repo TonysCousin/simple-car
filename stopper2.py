@@ -1,4 +1,5 @@
 from collections import deque
+from concurrent.futures.process import _threads_wakeups
 import math
 from statistics import mean, stdev
 from ray.tune import Stopper
@@ -91,7 +92,7 @@ class StopLogic(Stopper):
             # Else the deque is full so we can start analyzing stop criteria
             else:
                 # Stop if avg of mean rewards over recent history is above the succcess threshold and its standard deviation is small
-                avg_of_mean = mean(list(self.trials[trial_id]["mean_rewards"]))
+                avg_of_mean = mean(self.trials[trial_id]["mean_rewards"])
                 std_of_mean = stdev(self.trials[trial_id]["mean_rewards"])
                 #print("///// StopLogic: iter #{}, avg reward = {:.2f}, std of mean = {:.3f}".format(total_iters, avg, std_of_mean))
                 if avg_of_mean >= self.success_avg_threshold  and  std_of_mean <= self.completion_std_threshold:
@@ -120,6 +121,7 @@ class StopLogic(Stopper):
 
                     # If the avg mean reward over recent history is below the failure threshold then
                     if avg_of_mean < self.failure_avg_threshold:
+                        done = False
 
                         # If the max reward is below success threshold and not climbing significantly, then stop as a failure
                         dq_max = self.trials[trial_id]["max_rewards"]
@@ -128,17 +130,23 @@ class StopLogic(Stopper):
                         if avg_of_max < self.success_avg_threshold:
                             if slope_max <= 0.0:
                                 print("\n///// Stopping trial - no improvement in {} iters.\n".format(self.most_recent))
-                                return True
+                                done = True
 
                         # If the mean curve is heading down and the max is not increasing then stop as a failure
                         if slope_max <= 0.0  and  self._get_slope(self.trials[trial_id]["mean_rewards"]) < 0.0:
-                            print("\n///// Stopping trial - mean reward bad & getting worse, max is not improving.")
-                            return True
+                            print("\n///// Stopping trial - mean reward bad & getting worse, max is not improving in latest {} iters."
+                                    .format(self.most_recent))
+                            done = True
 
                         # If the mean is a lot closer to the min than to the max then stop as failure
                         avg_of_min = mean(list(self.trials[trial_id]["min_rewards"]))
                         if avg_of_mean - avg_of_min < 0.25*(avg_of_max - avg_of_min):
-                            print("\n///// Stopping trial - no improvement and min reward is dominating.")
+                            print("\n///// Stopping trial - no improvement and min reward is dominating in latest {} iters."
+                                    .format(self.most_recent))
+                            done = True
+
+                        if done:
+                            print("      means = ", self.trials[trial_id]["mean_rewards"])
                             return True
 
         # Else, it is a brand new trial
