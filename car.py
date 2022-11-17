@@ -253,18 +253,19 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
 
             # if the vehicle just stopped in the middle of the road then subtract a penalty
             if stopped:
-                reward -= 0.5
+                reward = -50.0
                 explanation = "Vehicle stopped. "
 
             # Else if it crashed then subtract a penalty
             elif crash:
-                reward -= 1.0
+                reward = -50.0
                 explanation = "Crashed"
 
             # Else (episode ended successfully)
             else:
-                # Add amount inversely proportional to the length of the episode
-                reward = max(15.0 - 0.03 * self.steps_since_reset, 0.0)
+                # Add amount that decreases with the length of the episode
+                diff = 600 - self.steps_since_reset
+                reward = max(47.26e-6 * diff*diff, 0.0)
                 explanation = "Successful episode! {} steps".format(self.steps_since_reset)
 
         # Else, episode still underway
@@ -274,13 +275,21 @@ class Car(gym.Env):  #Based on OpenAI gym 0.26.1 API
             # going significantly slower than the speed limit
             norm_speed = self.obs[self.EGO_SPEED] * Car.MAX_SPEED / Car.ROAD_SPEED_LIMIT #1.0 = speed limit
             penalty = 0.0
-            #if norm_speed < 0.95:
-            #    penalty = 0.1 * (1.0 - norm_speed/0.95)
-            #    explanation += "Low speed penalty {:.4f}. ".format(penalty)
-            if norm_speed > 1.0:
+            if norm_speed < 0.95:
+                diff = 0.95 - norm_speed
+                penalty = 0.2 * diff*diff
+                explanation += "Low speed penalty {:.4f}. ".format(penalty)
+            elif norm_speed > 1.0:
                 diff = norm_speed - 1.0
-                penalty = 5.0 * diff*diff
+                penalty = 10.0 * diff*diff
                 explanation += "HIGH speed penalty {:.4f}. ".format(penalty)
             reward -= penalty
+
+            # Penalty for jerky behavior
+            jerk = (self.obs[self.EGO_ACCEL_CMD_CUR] - self.obs[self.EGO_ACCEL_CMD_PREV]) / self.time_step_size
+            penalty = 0.04 * jerk*jerk
+            reward -= penalty
+            if penalty > 0.0001:
+                explanation += "Jerk penaltyy {:.4f}. ".format(penalty)
 
         return reward, explanation

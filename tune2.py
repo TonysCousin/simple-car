@@ -80,18 +80,18 @@ params["train_batch_size"]                  = 800 #must be = rollout_fragment_le
 
 # Add dict here for lots of model HPs
 model_config = params["model"]
-model_config["fcnet_hiddens"]               = tune.choice([64, 48, 8], [50, 8], [16, 4]])
+model_config["fcnet_hiddens"]               = tune.choice([[64, 48, 8], [50, 8], [16, 4]])
 model_config["fcnet_activation"]            = "relu" #tune.choice(["relu", "relu", "tanh"])
 model_config["post_fcnet_activation"]       = "linear" #tune.choice(["linear", "tanh"])
 params["model"] = model_config
 
 explore_config = params["exploration_config"]
 explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-explore_config["stddev"]                    = 0.1 #tune.uniform(0.1, 0.5) #this param is specific to GaussianNoise
+explore_config["stddev"]                    = 0.2 #tune.uniform(0.1, 0.5) #this param is specific to GaussianNoise
 explore_config["random_timesteps"]          = 0 #tune.qrandint(0, 20000, 50000) #was 20000
 explore_config["initial_scale"]             = 1.0
 explore_config["final_scale"]               = 0.02 #tune.choice([1.0, 0.01])
-explore_config["scale_timesteps"]           = 200000  #tune.choice([100000, 400000]) #was 900k
+explore_config["scale_timesteps"]           = 500000  #tune.choice([100000, 400000]) #was 900k
 params["exploration_config"] = explore_config
 
 # ===== Final setup =========================================================================
@@ -106,15 +106,15 @@ tune_config = tune.TuneConfig(
                 num_samples                 = 15 #number of HP trials
               )
 stopper = StopLogic(max_timesteps           = 400,
-                    max_iterations          = 1000,
-                    min_iterations          = 400,
+                    max_iterations          = 800,
+                    min_iterations          = 300,
                     avg_over_latest         = 200,
-                    success_threshold       = 0.95,
-                    failure_threshold       = 0.1,
-                    compl_std_dev           = 0.015
+                    success_threshold       = 8.0,
+                    failure_threshold       = 0.0,
+                    compl_std_dev           = 0.1
                    )
 run_config = air.RunConfig(
-                name                        = "racecar",
+                name                        = "car",
                 local_dir                   = "~/ray_results",
                 stop                        = stopper,
                 sync_config                 = tune.SyncConfig(syncer = None), #for single-node or shared checkpoint dir
