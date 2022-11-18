@@ -115,8 +115,9 @@ class StopLogic(Stopper):
 
                     # Stop if mean and max rewards haven't significantly changed in recent history
                     std_of_max  = stdev(self.trials[trial_id]["max_rewards"])
-                    if std_of_mean <= self.completion_std_threshold  and  std_of_max <= self.completion_std_threshold:
-                        print("\n///// Stopping trial due to no further change")
+                    if std_of_mean <= self.completion_std_threshold  and  std_of_max <= self.completion_std_threshold \
+                       and  avg_of_mean >= self.success_avg_threshold:
+                        print("\n///// Stopping trial due to winner with no further change")
                         return True
 
                     # If the avg mean reward over recent history is below the failure threshold then

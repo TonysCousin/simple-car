@@ -72,7 +72,7 @@ params["train_batch_size"]                  = 32
 """
 # ===== Params for PPO ======================================================================
 
-params["lr"]                                = tune.loguniform(1e-7, 3e-4)
+params["lr"]                                = tune.loguniform(8e-6, 9e-5)
 params["sgd_minibatch_size"]                = 32 #must be <= train_batch_size (and divide into it)
 params["train_batch_size"]                  = 800 #must be = rollout_fragment_length * num_workers * num_envs_per_worker
 #params["grad_clip"]                         = tune.uniform(0.1, 0.5)
@@ -80,18 +80,18 @@ params["train_batch_size"]                  = 800 #must be = rollout_fragment_le
 
 # Add dict here for lots of model HPs
 model_config = params["model"]
-model_config["fcnet_hiddens"]               = tune.choice([[64, 48, 8], [50, 8], [16, 4]])
+model_config["fcnet_hiddens"]               = [64, 48, 8]
 model_config["fcnet_activation"]            = "relu" #tune.choice(["relu", "relu", "tanh"])
 model_config["post_fcnet_activation"]       = "linear" #tune.choice(["linear", "tanh"])
 params["model"] = model_config
 
 explore_config = params["exploration_config"]
 explore_config["type"]                      = "GaussianNoise" #default OrnsteinUhlenbeckNoise doesn't work well here
-explore_config["stddev"]                    = 0.2 #tune.uniform(0.1, 0.5) #this param is specific to GaussianNoise
+explore_config["stddev"]                    = 0.3 #tune.uniform(0.1, 0.5) #this param is specific to GaussianNoise
 explore_config["random_timesteps"]          = 0 #tune.qrandint(0, 20000, 50000) #was 20000
 explore_config["initial_scale"]             = 1.0
-explore_config["final_scale"]               = 0.02 #tune.choice([1.0, 0.01])
-explore_config["scale_timesteps"]           = 500000  #tune.choice([100000, 400000]) #was 900k
+explore_config["final_scale"]               = 0.04 #tune.choice([1.0, 0.01])
+explore_config["scale_timesteps"]           = 900000  #tune.choice([100000, 400000]) #was 900k
 params["exploration_config"] = explore_config
 
 # ===== Final setup =========================================================================
@@ -106,12 +106,12 @@ tune_config = tune.TuneConfig(
                 num_samples                 = 15 #number of HP trials
               )
 stopper = StopLogic(max_timesteps           = 400,
-                    max_iterations          = 800,
-                    min_iterations          = 300,
-                    avg_over_latest         = 200,
+                    max_iterations          = 1200,
+                    min_iterations          = 400,
+                    avg_over_latest         = 300,
                     success_threshold       = 8.0,
                     failure_threshold       = 0.0,
-                    compl_std_dev           = 0.1
+                    compl_std_dev           = 0.05
                    )
 run_config = air.RunConfig(
                 name                        = "car",

@@ -132,8 +132,8 @@ class StopLogic(Stopper):
                         slope_max = self._get_slope(dq_max)
                         if slope_max < 0.0:
                             if avg_of_max < self.failure_avg_threshold:
-                                    print("\n///// Stopping trial - no improvement in {} iters.\n".format(self.most_recent))
-                                    done = True
+                                print("\n///// Stopping trial - no improvement in {} iters.\n".format(self.most_recent))
+                                done = True
 
                             # If the mean curve is heading down and the max is not increasing then stop as a failure
                             elif self._get_slope(self.trials[trial_id]["mean_rewards"]) < 0.0:

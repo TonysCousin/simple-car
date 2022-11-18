@@ -53,6 +53,7 @@ def main(argv):
     config["model"] = model
 
     config["env_config"] = env_config
+    config["explore"] = False
     config["framework"] = "torch"
     config["num_gpus"] = 0
     config["num_workers"] = 1
